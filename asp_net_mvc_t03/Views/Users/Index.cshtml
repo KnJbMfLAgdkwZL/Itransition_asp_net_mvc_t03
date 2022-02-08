@@ -1,0 +1,28 @@
+@model System.Collections.Generic.List<asp_net_mvc_t03.Models.User>
+
+@{
+    ViewBag.Title = "Users";
+    Layout = "_Layout";
+}
+
+<h2>Users</h2>
+
+@foreach (var user in @Model)
+{
+    <div>
+        @user.Id
+        <br/>
+        @user.Email
+        <br/>
+        @user.Name
+        <br/>
+        @user.Status
+        <br/>
+        @user.RegistrationDate
+        <br/>
+        @user.LastLoginDate
+        <br/>
+        @user.Password
+    </div>
+    <hr/>
+}

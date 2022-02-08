@@ -13,7 +13,7 @@ builder.Services.AddDbContext<MasterContext>(options =>
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options => //CookieAuthenticationOptions
     {
-        options.LoginPath = new Microsoft.AspNetCore.Http.PathString("/account/login");
+        options.LoginPath = new PathString("/account/login");
     });
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
