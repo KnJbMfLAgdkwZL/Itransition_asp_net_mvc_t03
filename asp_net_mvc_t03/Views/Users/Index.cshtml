@@ -5,24 +5,52 @@
     Layout = "_Layout";
 }
 
+<div>
+    <button>Block</button>
+    <button>Unblock</button>
+    <button>Delete</button>
+</div>
+
 <h2>Users</h2>
 
-@foreach (var user in @Model)
-{
-    <div>
-        @user.Id
-        <br/>
-        @user.Email
-        <br/>
-        @user.Name
-        <br/>
-        @user.Status
-        <br/>
-        @user.RegistrationDate
-        <br/>
-        @user.LastLoginDate
-        <br/>
-        @user.Password
-    </div>
-    <hr/>
-}
+<table>
+    <tr>
+        <th>
+            <input type="checkbox"/> All
+        </th>
+        <th>Id</th>
+        <th>Email</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Registration Date</th>
+        <th>Last Login Date</th>
+    </tr>
+
+    @foreach (var user in @Model)
+    {
+        <tr>
+            <td>
+                <input type="checkbox"/>
+            </td>
+            <td>@user.Id</td>
+            <td>@user.Email</td>
+            <td>@user.Name</td>
+            <td>@user.Status</td>
+            <td>@user.RegistrationDate</td>
+            <td>@user.LastLoginDate</td>
+        </tr>
+    }
+
+</table>
+
+<style>
+    table {
+        border: 1px solid #a4a4a4;
+        width: 100%;
+    }
+    td, th {
+        border: 1px solid #a4a4a4;
+        padding: 12px;
+        text-align: left;
+    }
+</style>
