@@ -1,3 +1,4 @@
+using asp_net_mvc_t03.Middlewares;
 using asp_net_mvc_t03.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -15,11 +16,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = new PathString("/account/login");
         options.SlidingExpiration = true;
-        options.AccessDeniedPath = new PathString("/account/login");
+        //options.AccessDeniedPath = new PathString("/account/login");
         options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
     });
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddAuthorization();
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddControllersWithViews();
@@ -39,11 +41,15 @@ else
     app.UseHsts();
 }
 
+//app.UseMiddleware<RequestHandlerMiddleware>();
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseMiddleware<AutoLogoutMiddleware>();
 
 app.MapControllerRoute(
     name: "default",

@@ -1,9 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Threading.Tasks;
-using System.Threading;
 using asp_net_mvc_t03.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +20,6 @@ public class UsersController : Controller
     public async Task<ActionResult> IndexAsync(CancellationToken token)
     {
         var users = await _masterContext.Users.ToListAsync(token);
-        Console.WriteLine(users.Count);
         return View(users);
     }
 
