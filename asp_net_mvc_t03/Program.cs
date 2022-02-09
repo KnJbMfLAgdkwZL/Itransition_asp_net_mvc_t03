@@ -14,9 +14,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     .AddCookie(options => //CookieAuthenticationOptions
     {
         options.LoginPath = new PathString("/account/login");
+        options.SlidingExpiration = true;
+        options.AccessDeniedPath = new PathString("/account/login");
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
     });
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
-
+builder.Services.AddAuthorization();
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddControllersWithViews();

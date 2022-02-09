@@ -1,4 +1,4 @@
-@model Application.DTO.Frontend.Forms.RegisterForm
+@model asp_net_mvc_t03.DTO.Frontend.Forms.RegisterForm
 
 @{
     ViewBag.Title = "Registration";
@@ -12,24 +12,25 @@
     <div>
         <div>
             <label asp-for="Email">Enter Email</label><br/>
-            <input type="email" asp-for="Email"/>
+            <input type="email" required placeholder="user@example.com" asp-for="Email"/>
             <span asp-validation-for="Email"/>
         </div>
         <div>
             <label asp-for="Password">Enter password</label><br/>
-            <input asp-for="Password"/>
+            <input required asp-for="Password"/>
             <span asp-validation-for="Password"/>
         </div>
         <div>
             <label asp-for="ConfirmPassword">Repeat password</label><br/>
-            <input asp-for="ConfirmPassword"/>
+            <input required asp-for="ConfirmPassword"/>
             <span asp-validation-for="ConfirmPassword"/>
         </div>
         <div>
             <label asp-for="Name">Enter Name</label><br/>
-            <input type="text" asp-for="Name"/>
+            <input required type="text" asp-for="Name"/>
             <span asp-validation-for="Name"/>
         </div>
+        <br/>
         <div>
             <input type="submit" value="Submit"/>
         </div>
