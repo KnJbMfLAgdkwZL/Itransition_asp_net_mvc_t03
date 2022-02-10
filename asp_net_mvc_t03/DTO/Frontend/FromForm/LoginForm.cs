@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace asp_net_mvc_t03.DTO.Frontend.Forms;
+namespace asp_net_mvc_t03.DTO.Frontend.FromForm;
 
 public class LoginForm
 {

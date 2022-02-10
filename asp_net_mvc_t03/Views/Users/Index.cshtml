@@ -5,18 +5,20 @@
     Layout = "_Layout";
 }
 
+<h2>Users</h2>
+
 <div>
-    <button>Block</button>
-    <button>Unblock</button>
-    <button>Delete</button>
+    <button class="toolbarButtons" action="Block">🔒 Block</button>
+    <button class="toolbarButtons" action="Unblock">🔓 Unblock</button>
+    <button class="toolbarButtons" action="Delete">🗑️ Delete</button>
 </div>
 
-<h2>Users</h2>
+<br/>
 
 <table>
     <tr>
         <th>
-            <input type="checkbox"/> All
+            <input id="selectAll" type="checkbox"/> All
         </th>
         <th>Id</th>
         <th>Email</th>
@@ -30,7 +32,7 @@
     {
         <tr>
             <td>
-                <input type="checkbox"/>
+                <input class="selected" type="checkbox" userId="@user.Id"/>
             </td>
             <td>@user.Id</td>
             <td>@user.Email</td>
@@ -53,4 +55,53 @@
         padding: 12px;
         text-align: left;
     }
+    .toolbarButtons{
+    width: 150px;
+    padding: 5px;
+    margin-right: 10px;
+    }
 </style>
+
+
+<script>
+function SetUsersCheckBox(val = true) {
+    let items = document.getElementsByClassName('selected')
+    for (let item of items) {
+        item.checked = val
+    }
+}
+
+selectAll.onclick = function () {
+    if (this.checked) {
+        SetUsersCheckBox(true)
+    } else {
+        SetUsersCheckBox(false)
+    }
+}
+
+function GetSelectedUsers() {
+    let usersId = []
+    let items = document.getElementsByClassName('selected')
+    for (let item of items) {
+        if (item.checked) {
+            usersId.push(item.getAttribute("userId"))
+        }
+    }
+    return usersId
+}
+
+for (let button of document.getElementsByClassName('toolbarButtons')) {
+    button.onclick = function () {
+        let action = this.getAttribute("action")
+        let usersId = GetSelectedUsers()
+        fetch("/Users/ToolButtonClick", {
+            method: "POST", headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+                action: action,
+                usersId: usersId
+            })
+        }).then(res => {
+            location.reload()
+        })
+    }
+}
+</script>

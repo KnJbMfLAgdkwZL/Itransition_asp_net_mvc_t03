@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using asp_net_mvc_t03.DTO.Frontend.FromBody;
+using asp_net_mvc_t03.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using asp_net_mvc_t03.Models;
@@ -23,57 +26,23 @@ public class UsersController : Controller
         return View(users);
     }
 
-    /*
-    [HttpGet("Cart")]
-    public async Task<ActionResult> GetCartAsync(CancellationToken token, [FromQuery] string promoCodeKey = "")
-    {
-        var userMail = User.Identity?.Name;
-        var cartAndPromoCodeFront = new CartAndPromoCodeFront()
-        {
-            Cart = await _customerCart.GetAllAsync(userMail, token) ?? new List<Cart>(),
-            PromoCode = await _promoCodes.GetOneAsync(promoCodeKey, token)
-        };
-        return View(cartAndPromoCodeFront);
-    }
-
-    [HttpPost("Cart")]
-    public async Task<ActionResult> AddCartAsync(CancellationToken token,
-        [FromForm] [Required] string phoneSlug,
-        [FromForm] [Required] int amount)
+    [HttpPost("ToolButtonClick")]
+    public async Task<ActionResult> ToolButtonClickAsync(CancellationToken token,
+        [FromBody] [Required] ToolButtonAction data)
     {
         if (!ModelState.IsValid)
         {
-            return BadRequest("phoneSlug or amount not set");
+            return BadRequest();
         }
 
-        var userMail = User.Identity?.Name;
-        await _customerCart.AddOrUpdateAsync(phoneSlug, userMail, amount, token);
-
-        return RedirectToAction("GetCart", "CustomerCart");
-    }
-
-    [HttpGet("Cart/Remove/{phoneSlug}")]
-    public async Task<ActionResult> RemoveCartAsync(CancellationToken token,
-        [FromRoute] [Required] string phoneSlug)
-    {
-        if (!ModelState.IsValid)
+        if (!Enum.TryParse(data.Action, out UserStatus status))
         {
-            return BadRequest("phoneSlug not set");
+            return BadRequest();
         }
 
-        var userMail = User.Identity?.Name;
-        await _customerCart.RemoveAsync(phoneSlug, userMail, token);
-
-        return RedirectToAction("GetCart", "CustomerCart");
+        var usersList = await _masterContext.Users.Where(user => data.UsersId.Contains(user.Id)).ToListAsync(token);
+        usersList.ForEach(user => user.Status = status.ToString());
+        await _masterContext.SaveChangesAsync(token);
+        return Ok();
     }
-
-    [HttpGet("Cart/Buy")]
-    public async Task<ActionResult> BuyCartAsync(CancellationToken token, [FromQuery] string promoCodeKey = "")
-    {
-        var userMail = User.Identity?.Name;
-        var carts = await _customerCart.BuyAsync(userMail, token);
-        var totalSum = await _promoCodes.Buy(carts, promoCodeKey, token);
-
-        return Ok($"BuyPhones. Total sum {totalSum}");
-    }*/
 }
