@@ -1,7 +1,7 @@
 ﻿// Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
 
-addressee.oninput = function () {
+function GetAddressees() {
     if (this.value.length >= 3) {
         fetch("/Chat/GetAddressees?" + (new URLSearchParams({
             search: this.value
@@ -10,12 +10,46 @@ addressee.oninput = function () {
         }).then((response) => {
             return response.json();
         }).then((data) => {
-            myFunction(this)
-            addressees.innerHTML = data.join('<br/>')
-            addressees.style.display = 'inline-block'
+            if (data.length > 0) {
+                let cord = getCaretGlobalCoordinates(this)
+                addresRecomSetCord(cord)
+                addresRecomShow(data)
+            }
         })
     }
 }
+
+function addresRecomHide() {
+    addresRecom.innerHTML = ''
+    addresRecom.style.display = 'none'
+}
+
+function addresRecomSetCord(cord) {
+    addresRecom.style.top = cord.top
+    addresRecom.style.left = cord.left
+}
+
+function addresRecomShow(data) {
+    let str = ''
+    data.forEach(v => str += `<div class="addressesRecommendations" onMouseDown="addressesRecommendationsClick(this)">${v}</div>`)
+    addresRecom.innerHTML = str
+    addresRecom.style.display = 'inline-block'
+}
+
+addressee.oninput = GetAddressees
+addressee.onfocus = GetAddressees
+
+function addressesRecommendationsClick(el) {
+    addressee.value = el.innerHTML
+    console.log(el.innerHTML)
+
+    addresRecomHide()
+}
+
+addressee.onblur = function () {
+    addresRecomHide()
+}
+
 
 function getElementCoords(elem) {
     let box = elem.getBoundingClientRect();
@@ -30,15 +64,12 @@ function getElementCoords(elem) {
     return {top: Math.round(top), left: Math.round(left)};
 }
 
-function myFunction(Desired_ID) {
-    //document.getElementById(Desired_ID.id).style.backgroundColor = "red";
+function getCaretGlobalCoordinates(Desired_ID) {
     let coordinates = getCaretCoordinates(Desired_ID, Desired_ID.selectionStart);
     let elementCoordinates = getElementCoords(Desired_ID);
     let top = coordinates.top + elementCoordinates.top;
     let left = coordinates.left + elementCoordinates.left;
-
-    addressees.style.top = `${top}px`
-    addressees.style.left = `${left}px`
+    return {top: `${top}px`, left: `${left}px`};
 }
 
 (function () {
