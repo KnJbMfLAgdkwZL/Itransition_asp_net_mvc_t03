@@ -6,6 +6,29 @@
 }
 
 
+<div>
+    <form>
+        To: <input type="text" name="addressee" id="addressee"/> <br/>
+        Topic: <input type="text" name="head" id="head"/> <br/>
+        Body: <input type="text" name="body" id="body"/> <br/>
+        <input type="submit" value="send"/>
+    </form>
+</div>
+
+
+<span id="addressees">
+</span>
+<style>
+#addressees{
+    display: none;
+    position: absolute;
+    background: lightblue;
+    margin: 10px;
+    padding: 5px;
+}
+</style>
+
+
 <h1>WebSocket Sample Application</h1>
 <p id="stateLabel">Ready to connect...</p>
 <div>
