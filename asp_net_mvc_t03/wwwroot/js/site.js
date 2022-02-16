@@ -1,68 +1,5 @@
 ﻿// Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
-
-function GetAddressees() {
-    if (this.value.length >= 3) {
-
-        /*fetch("/Chat/GetAddressees?" + (new URLSearchParams({
-            search: this.value
-        })).toString(), {
-            method: "GET"
-        }).then((response) => {
-            return response.json();
-        }).then((data) => {
-            if (data.length > 0) {
-                let cord = getCaretGlobalCoordinates(this)
-                addresRecomSetCord(cord)
-                addresRecomShow(data)
-            }
-        })*/
-
-
-        let data = JSON.stringify({
-            Type: 'GetUsersEmail',
-            Data: {
-                Search: this.value
-            }
-        })
-        sendMessage(data)
-
-
-    }
-}
-
-function addresRecomHide() {
-    addresRecom.innerHTML = ''
-    addresRecom.style.display = 'none'
-}
-
-function addresRecomSetCord(cord) {
-    addresRecom.style.top = cord.top
-    addresRecom.style.left = cord.left
-}
-
-function addresRecomShow(data) {
-    let str = ''
-    data.forEach(v => str += `<div class="addressesRecommendations" onMouseDown="addressesRecommendationsClick(this)">${v}</div>`)
-    addresRecom.innerHTML = str
-    addresRecom.style.display = 'inline-block'
-}
-
-addressee.oninput = GetAddressees
-addressee.onfocus = GetAddressees
-
-function addressesRecommendationsClick(el) {
-    addressee.value = el.innerHTML
-    console.log(el.innerHTML)
-
-    addresRecomHide()
-}
-
-addressee.onblur = function () {
-    addresRecomHide()
-}
-
-
 function getElementCoords(elem) {
     let box = elem.getBoundingClientRect();
     let body = document.body;
@@ -141,99 +78,156 @@ function getCaretGlobalCoordinates(Desired_ID) {
     }
 }());
 
+function HideAddressRecommendation() {
+    let addressRecommendation = document.getElementById('addressRecommendation')
+    addressRecommendation.innerHTML = ''
+    addressRecommendation.style.display = 'none'
+}
 
-send.onclick = function () {
-    let data = JSON.stringify({
-        Type: 'CreateMessage',
-        Data: {
-            Addressee: addressee.value,
-            Head: head.value,
-            Body: body.value
+function SetAddressRecommendationCoordinates(cord) {
+    let addressRecommendation = document.getElementById('addressRecommendation')
+    addressRecommendation.style.top = cord.top
+    addressRecommendation.style.left = cord.left
+}
+
+function ShowAddressRecommendation(data) {
+    let addressRecommendation = document.getElementById('addressRecommendation')
+    let str = ''
+    data.forEach(v => str += `<div class="addressesRecommendations">${v}</div>`)
+    addressRecommendation.innerHTML = str
+    addressRecommendation.style.display = 'inline-block'
+    for (let v of document.getElementsByClassName('addressesRecommendations')) {
+        v.onmousedown = addressesRecommendationsClick
+    }
+}
+
+function addressesRecommendationsClick() {
+    let toUser = document.getElementById('toUser')
+    toUser.value = this.innerHTML
+    HideAddressRecommendation()
+}
+
+class WebSocketWrapper {
+    constructor() {
+        let scheme = document.location.protocol === "https:" ? "wss" : "ws";
+        let port = document.location.port ? (":" + document.location.port) : "";
+        let connectionUrl = scheme + "://" + document.location.hostname + port + "/ws";
+        this.socket = new WebSocket(connectionUrl);
+        this.socket.onopen = this.onopen
+        this.socket.onclose = this.onclose
+        this.socket.onmessage = this.onmessage
+        this.socket.onerror = this.onerror
+    }
+
+    closeSocket() {
+        let socket = this.socket
+
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.log("socket not connected");
         }
-    })
-    sendMessage(data)
-}
-
-
-let scheme = document.location.protocol === "https:" ? "wss" : "ws";
-let port = document.location.port ? (":" + document.location.port) : "";
-let connectionUrl = scheme + "://" + document.location.hostname + port + "/ws";
-let socket = new WebSocket(connectionUrl);
-
-
-function closeSocket() {
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-        console.log("socket not connected");
+        socket.close(1000, "Closing from client");
     }
-    socket.close(1000, "Closing from client");
-}
 
-function sendMessage(data) {
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-        console.log("socket not connected");
+    sendMessage(data) {
+        let socket = this.socket
+
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.log("socket not connected");
+        }
+        socket.send(data);
     }
-    socket.send(data);
-}
 
-socket.onopen = function (event) {
-    console.log(`onopen`)
-}
-socket.onclose = function (event) {
-    console.log(`onclose: ${event.code}`)
-}
-socket.onmessage = function (event) {
-    console.log(`onmessage: ${event.data}`)
-    let response = JSON.parse(event.data)
-    if (response && response.Type) {
-        let caseMethod = WebSocketResponseCases[response.Type]
-        if (caseMethod) {
-            caseMethod(response)
+    onopen(event) {
+        console.log(`onopen`)
+    }
+
+    onclose(event) {
+        console.log(`onclose: ${event.code}`)
+    }
+
+    onmessage(event) {
+        console.log(`onmessage: ${event.data}`)
+        let response = JSON.parse(event.data)
+        if (response && response.Type) {
+            let caseMethod = WebSocketResponseCases[response.Type]
+            if (caseMethod) {
+                caseMethod(response)
+            }
         }
     }
-}
-socket.onerror = function () {
-    if (socket) {
-        switch (socket.readyState) {
-            case WebSocket.CLOSED:
-                console.log(`onerror: WebSocket.CLOSED`)
-                break;
-            case WebSocket.CLOSING:
-                console.log(`onerror: WebSocket.CLOSING`)
-                break;
-            case WebSocket.CONNECTING:
-                console.log(`onerror: WebSocket.CONNECTING`)
-                break;
-            case WebSocket.OPEN:
-                console.log(`onerror: WebSocket.OPEN`)
-                break;
-            default:
-                console.log(`Unknown WebSocket State: ${socket.readyState}`)
-                break;
+
+    onerror() {
+        let socket = this.socket
+
+        if (socket) {
+            switch (socket.readyState) {
+                case WebSocket.CLOSED:
+                    console.log(`onerror: WebSocket.CLOSED`)
+                    break;
+                case WebSocket.CLOSING:
+                    console.log(`onerror: WebSocket.CLOSING`)
+                    break;
+                case WebSocket.CONNECTING:
+                    console.log(`onerror: WebSocket.CONNECTING`)
+                    break;
+                case WebSocket.OPEN:
+                    console.log(`onerror: WebSocket.OPEN`)
+                    break;
+                default:
+                    console.log(`Unknown WebSocket State: ${socket.readyState}`)
+                    break;
+            }
         }
     }
-}
 
+}
 
 let WebSocketResponseCases = {
     GetUsersEmailResponse: function (response) {
         if (response.Data) {
             let data = response.Data
             if (data.length > 0) {
-                let cord = getCaretGlobalCoordinates(addressee)
-                addresRecomSetCord(cord)
-                addresRecomShow(data)
+                let toUser = document.getElementById('toUser')
+                let cord = getCaretGlobalCoordinates(toUser)
+                SetAddressRecommendationCoordinates(cord)
+                ShowAddressRecommendation(data)
             }
         }
-    },
-    CreateMessageResponse: function (response) {
-        console.log('CreateMessageResponse ok')
-        /*if (response.data) {
-            let data = response.data
-            if (data.length > 0) {
-                let cord = getCaretGlobalCoordinates(addressee)
-                addresRecomSetCord(cord)
-                addresRecomShow(data)
-            }*/
+    }, CreateMessageResponse: function (response) {
+        if (response.Data) {
+            if (!response.Error) {
+                document.location.href = `/Chat/Dialog?id=${response.Data.Id}`;
+            }
+        }
     }
 }
 
+if (window.location.href.indexOf('Chat/Index') > -1) {
+    let webSocketWrapper = new WebSocketWrapper()
+
+    let toUser = document.getElementById('toUser')
+    toUser.oninput = toUser.onfocus = function () {
+        if (this.value.length >= 3) {
+            webSocketWrapper.sendMessage(JSON.stringify({
+                Type: 'GetUsersEmail', Data: {
+                    Search: this.value
+                }
+            }))
+        }
+    }
+    toUser.onblur = function () {
+        HideAddressRecommendation()
+    }
+
+    let head = document.getElementById('head')
+    let body = document.getElementById('body')
+
+    document.getElementById('send').onclick = function () {
+        let data = JSON.stringify({
+            Type: 'CreateMessage', Data: {
+                ToUser: toUser.value, Head: head.value, Body: body.value
+            }
+        })
+        webSocketWrapper.sendMessage(data)
+    }
+}

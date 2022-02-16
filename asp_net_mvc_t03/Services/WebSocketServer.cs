@@ -39,7 +39,7 @@ public class WebSocketServer : IWebSocketServer
 
     public async Task EchoAsync(HttpContext httpContext)
     {
-        var token = httpContext?.RequestAborted ?? CancellationToken.None;
+        var token = CancellationToken.None;
 
         const int bufferSize = 1024 * 4;
         var buffer = new byte[bufferSize];
@@ -95,7 +95,7 @@ public class WebSocketServer : IWebSocketServer
 
     private async Task GetUsersEmailAsync(dynamic request, HttpContext httpContext)
     {
-        var token = httpContext?.RequestAborted ?? CancellationToken.None;
+        var token = CancellationToken.None;
 
         string search = request.Data.Search;
 
@@ -131,7 +131,7 @@ public class WebSocketServer : IWebSocketServer
             return;
         }
 
-        var token = httpContext?.RequestAborted ?? CancellationToken.None;
+        var token = CancellationToken.None;
 
         await using var transaction = await _masterContext.Database.BeginTransactionAsync(token);
 
@@ -140,9 +140,9 @@ public class WebSocketServer : IWebSocketServer
             .Where(user => user.Email == authorName && user.Status == UserStatus.Unblock.ToString())
             .FirstOrDefaultAsync(token);
 
-        var toUserName = (string) request.Data.Addressee.ToString();
+        var toUserName = (string) request.Data.ToUser.ToString();
         var toUser = await _masterContext.Users
-            .Where(user => user.Email == toUserName && user.Status == UserStatus.Unblock.ToString())
+            .Where(user => user.Email == toUserName)
             .FirstOrDefaultAsync(token);
 
         if (author == null)
@@ -152,7 +152,7 @@ public class WebSocketServer : IWebSocketServer
 
         if (toUser == null)
         {
-            response.Error = "Addressee not found";
+            response.Error = "ToUser not found";
         }
 
         if (author != null && toUser != null)
@@ -177,15 +177,17 @@ public class WebSocketServer : IWebSocketServer
         await SendAsync(response);
     }
 
-    private async Task GetMessagesAsync(dynamic request, HttpContext httpContext)
+    private Task GetMessagesAsync(dynamic request, HttpContext httpContext)
     {
         var response = new WebSocketMessage
         {
             Type = request.Type + "Response",
         };
+        return Task.CompletedTask;
     }
 
-    private async Task GetHeadsAsync(dynamic request, HttpContext httpContext)
+    private Task GetHeadsAsync(dynamic request, HttpContext httpContext)
     {
+        return Task.CompletedTask;
     }
 }
