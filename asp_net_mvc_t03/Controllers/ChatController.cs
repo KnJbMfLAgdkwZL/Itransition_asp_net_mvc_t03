@@ -3,9 +3,11 @@ using asp_net_mvc_t03.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using Microsoft.AspNetCore.Authorization;
 
 namespace asp_net_mvc_t03.Controllers;
 
+[Authorize]
 [Route("Chat")]
 public class ChatController : Controller
 {
@@ -17,22 +19,35 @@ public class ChatController : Controller
     }
 
     [HttpGet("Index")]
-    public IActionResult Index()
+    public  ActionResult Index(CancellationToken token)
     {
-        return View();
-    }
-
-    [HttpGet("GetAddressees")]
-    public async Task<ActionResult> GetAddresseesAsync(CancellationToken token, [FromQuery] string search)
-    {
-        var listString = await _masterContext.Users
+        /*var uName = HttpContext.User.Identity?.Name;
+        var curUser = await _masterContext.Users
             .Where(user =>
-                EF.Functions.Like(user.Email, $"%{search}%") &&
+                user.Email == uName &&
                 user.Status == UserStatus.Unblock.ToString())
-            .OrderBy(user => user.Email)
-            .Take(5)
-            .Select(user => user.Email)
-            .ToListAsync(token);
-        return Ok(listString);
+            .FirstOrDefaultAsync(token);
+        if (curUser != null)
+        {
+            var topics = await _masterContext.Messages
+                .Where(message =>
+                    message.AuthorId == curUser.Id ||
+                    message.ToUserId == curUser.Id
+                )
+                .OrderByDescending(message => message.CreateDate)
+                .GroupBy(message => message.Head)
+                .Select(g => new {name = g.Key, count = g.Count()})
+                .ToListAsync(token);
+
+            foreach (var v in topics)
+            {
+                Console.WriteLine(v.name);
+            }*/
+
+            //return Ok(234234324);
+            return View();
+        //}
+
+        //return BadRequest();
     }
 }

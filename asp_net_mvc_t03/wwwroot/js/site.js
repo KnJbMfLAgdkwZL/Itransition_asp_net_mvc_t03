@@ -3,7 +3,8 @@
 
 function GetAddressees() {
     if (this.value.length >= 3) {
-        fetch("/Chat/GetAddressees?" + (new URLSearchParams({
+
+        /*fetch("/Chat/GetAddressees?" + (new URLSearchParams({
             search: this.value
         })).toString(), {
             method: "GET"
@@ -15,7 +16,18 @@ function GetAddressees() {
                 addresRecomSetCord(cord)
                 addresRecomShow(data)
             }
+        })*/
+
+
+        let data = JSON.stringify({
+            Type: 'GetUsersEmail',
+            Data: {
+                Search: this.value
+            }
         })
+        sendMessage(data)
+
+
     }
 }
 
@@ -128,3 +140,100 @@ function getCaretGlobalCoordinates(Desired_ID) {
         window.getCaretCoordinates = getCaretCoordinates;
     }
 }());
+
+
+send.onclick = function () {
+    let data = JSON.stringify({
+        Type: 'CreateMessage',
+        Data: {
+            Addressee: addressee.value,
+            Head: head.value,
+            Body: body.value
+        }
+    })
+    sendMessage(data)
+}
+
+
+let scheme = document.location.protocol === "https:" ? "wss" : "ws";
+let port = document.location.port ? (":" + document.location.port) : "";
+let connectionUrl = scheme + "://" + document.location.hostname + port + "/ws";
+let socket = new WebSocket(connectionUrl);
+
+
+function closeSocket() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.log("socket not connected");
+    }
+    socket.close(1000, "Closing from client");
+}
+
+function sendMessage(data) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.log("socket not connected");
+    }
+    socket.send(data);
+}
+
+socket.onopen = function (event) {
+    console.log(`onopen`)
+}
+socket.onclose = function (event) {
+    console.log(`onclose: ${event.code}`)
+}
+socket.onmessage = function (event) {
+    console.log(`onmessage: ${event.data}`)
+    let response = JSON.parse(event.data)
+    if (response && response.Type) {
+        let caseMethod = WebSocketResponseCases[response.Type]
+        if (caseMethod) {
+            caseMethod(response)
+        }
+    }
+}
+socket.onerror = function () {
+    if (socket) {
+        switch (socket.readyState) {
+            case WebSocket.CLOSED:
+                console.log(`onerror: WebSocket.CLOSED`)
+                break;
+            case WebSocket.CLOSING:
+                console.log(`onerror: WebSocket.CLOSING`)
+                break;
+            case WebSocket.CONNECTING:
+                console.log(`onerror: WebSocket.CONNECTING`)
+                break;
+            case WebSocket.OPEN:
+                console.log(`onerror: WebSocket.OPEN`)
+                break;
+            default:
+                console.log(`Unknown WebSocket State: ${socket.readyState}`)
+                break;
+        }
+    }
+}
+
+
+let WebSocketResponseCases = {
+    GetUsersEmailResponse: function (response) {
+        if (response.Data) {
+            let data = response.Data
+            if (data.length > 0) {
+                let cord = getCaretGlobalCoordinates(addressee)
+                addresRecomSetCord(cord)
+                addresRecomShow(data)
+            }
+        }
+    },
+    CreateMessageResponse: function (response) {
+        console.log('CreateMessageResponse ok')
+        /*if (response.data) {
+            let data = response.data
+            if (data.length > 0) {
+                let cord = getCaretGlobalCoordinates(addressee)
+                addresRecomSetCord(cord)
+                addresRecomShow(data)
+            }*/
+    }
+}
+

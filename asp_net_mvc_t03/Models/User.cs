@@ -4,8 +4,8 @@ public partial class User
 {
     public User()
     {
-        Messages = new HashSet<Message>();
-        MessagesAddressees = new HashSet<MessagesAddressee>();
+        MessageAuthors = new HashSet<Message>();
+        MessageToUsers = new HashSet<Message>();
     }
 
     public int Id { get; set; }
@@ -15,7 +15,7 @@ public partial class User
     public DateTime LastLoginDate { get; set; }
     public string Status { get; set; } = null!;
     public string Password { get; set; } = null!;
-
-    public virtual ICollection<Message> Messages { get; set; }
-    public virtual ICollection<MessagesAddressee> MessagesAddressees { get; set; }
+    
+    public virtual ICollection<Message> MessageAuthors { get; set; }
+    public virtual ICollection<Message> MessageToUsers { get; set; }
 }

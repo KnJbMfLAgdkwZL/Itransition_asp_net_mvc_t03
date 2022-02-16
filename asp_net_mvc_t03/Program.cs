@@ -1,5 +1,8 @@
+using System.Diagnostics;
+using asp_net_mvc_t03.Interfaces;
 using asp_net_mvc_t03.Middlewares;
 using asp_net_mvc_t03.Models;
+using asp_net_mvc_t03.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -21,6 +24,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddAuthorization();
+
+// Services
+builder.Services.AddScoped<IWebSocketServer, WebSocketServer>();
 
 // Add services to the container.
 builder.Services.AddControllers();
