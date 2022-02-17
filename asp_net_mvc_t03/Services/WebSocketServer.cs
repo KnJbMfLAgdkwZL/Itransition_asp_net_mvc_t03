@@ -166,6 +166,7 @@ public class WebSocketServer : IWebSocketServer
                 New = true,
                 ReplyId = null
             };
+            modelMessage.Uid = GetHashString(author.Id + toUser.Id + modelMessage.Head);
 
             var entityEntry = await _masterContext.Messages.AddAsync(modelMessage, token);
             await _masterContext.SaveChangesAsync(token);
@@ -214,7 +215,7 @@ public class WebSocketServer : IWebSocketServer
             .Include(m => m.ToUser)
             .AsEnumerable()
             .OrderByDescending(m => m.CreateDate)
-            .GroupBy(m => m.Head)
+            .GroupBy(m => m.Uid)
             .Select(m => m.First())
             .Take(10)
             .ToList();
@@ -253,45 +254,40 @@ public class WebSocketServer : IWebSocketServer
             return;
         }
 
-        int id = request.Data.Id;
-        var message = await _masterContext.Messages
-            .Where(m => m.Id == id)
+        string uid = request.Data.Uid;
+        var messages = await _masterContext.Messages
+            .Where(m =>
+                (m.AuthorId == curUser.Id || m.ToUserId == curUser.Id) &&
+                m.Uid == uid
+            )
             .Include(m => m.Author)
             .Include(m => m.ToUser)
-            .FirstOrDefaultAsync(token);
-        if (message == null)
+            .OrderBy(m => m.CreateDate)
+            .Take(100)
+            .ToListAsync(token);
+
+        response.Data = new
         {
-            response.Error = "Message not found";
-            await SendAsync(response);
-            return;
+            Messages = messages,
+            UserId = curUser.Id
+        };
+        await SendAsync(response);
+    }
+
+    private string GetHashString(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
         }
 
-        if (message.AuthorId == curUser.Id || message.ToUserId == curUser.Id)
-        {
-            var dialogUsersId = new List<int>()
-            {
-                message.AuthorId,
-                message.ToUserId
-            };
+        using var sha = new System.Security.Cryptography.SHA256Managed();
+        var textBytes = System.Text.Encoding.UTF8.GetBytes(text);
+        var hashBytes = sha.ComputeHash(textBytes);
 
-            var messages = await _masterContext.Messages
-                .Where(m =>
-                    dialogUsersId.Contains(m.AuthorId) &&
-                    dialogUsersId.Contains(m.ToUserId) &&
-                    m.Head == message.Head
-                )
-                .Include(m => m.Author)
-                .Include(m => m.ToUser)
-                .OrderBy(m => m.CreateDate)
-                .Take(100)
-                .ToListAsync(token);
-
-            response.Data = new
-            {
-                Messages = messages,
-                UserId = curUser.Id
-            };
-            await SendAsync(response);
-        }
+        var hash = BitConverter
+            .ToString(hashBytes)
+            .Replace("-", string.Empty);
+        return hash;
     }
 }

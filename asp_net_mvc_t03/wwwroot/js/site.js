@@ -108,28 +108,20 @@ function addressesRecommendationsClick() {
 }
 
 function FillTopics(data) {
-
-    let url_str = window.location.href
-    let url = new URL(url_str);
-    let search_params = url.searchParams;
-    let id = null
-    let head = null
-    if (search_params.has('id') && search_params.has('head')) {
-        id = search_params.get('id')
-        head = search_params.get('head')
-    }
+    let Uid = GetParamFromUrl('Uid')
 
     let str = ''
     for (let v of data) {
         let date = new Date(v.CreateDate)
         let dateStr = date.toLocaleTimeString() + ' ' + date.toLocaleDateString()
         let active_chat = ''
-        if (id === v.Id || head === v.Head) {
+        if (Uid && v.Uid === Uid) {
             active_chat = 'active_chat'
         }
+        
         str += `
-        <a href="/Chat/Dialog?id=${v.Id}&head=${v.Head}" class="aTopics">
-            <div class="chat_list ${active_chat}" messageId="${v.Id}">
+        <a href="/Chat/Dialog?Uid=${v.Uid}" class="aTopics">
+            <div class="chat_list ${active_chat}" data-Uid="${v.Uid}">
                 <div class="chat_people">
                     <div class="chat_ib">
                         <h5>${v.Author.Name} (${v.Author.Email}) <span class="chat_date">${dateStr}</span></h5>
@@ -157,7 +149,7 @@ function FillDialog(data) {
         let dateStr = date.toLocaleTimeString() + ' ' + date.toLocaleDateString()
         if (v.AuthorId === userId) {
             str +=
-                `<div class="incoming_msg">
+                `<div class="incoming_msg dialog_msg">
                     <div class="received_msg received_withd_msg">
                         ${v.Author.Name} (${v.Author.Email})
                         <p>
@@ -168,7 +160,7 @@ function FillDialog(data) {
                 </div>`
         } else {
             str +=
-                `<div class="outgoing_msg">
+                `<div class="outgoing_msg dialog_msg">
                     <div class="sent_msg">
                         ${v.Author.Name} (${v.Author.Email})
                         <p>
@@ -180,6 +172,11 @@ function FillDialog(data) {
         }
     }
     document.getElementsByClassName('msg_history')[0].innerHTML = str
+    let dialog_msg = document.getElementsByClassName('dialog_msg')
+    if (dialog_msg.length) {
+        let last_dialog_msg = dialog_msg[dialog_msg.length - 1]
+        last_dialog_msg.scrollIntoView()
+    }
 }
 
 class WebSocketWrapper {
@@ -280,85 +277,120 @@ let WebSocketResponseCases = {
         }
     },
     CreateMessageResponse: function (response) {
-        if (!response.Error) {
-            if (response.Data) {
+        if (IsWebSocketResponse(response)) {
+            if (IsUrl('Chat/Index')) {
                 document.location.href = `/Chat/Dialog?id=${response.Data.Id}&head=${response.Data.Head}`
             }
+            if (IsUrl('Chat/Dialog')) {
+                GetMessagesWebSocket()
+                GetTopicsWebSocket()
+            }
         }
+
     },
     GetTopicsResponse: function (response) {
-        if (!response.Error) {
-            if (response.Data) {
-                FillTopics(response.Data)
-            }
+        if (IsWebSocketResponse(response)) {
+            FillTopics(response.Data)
         }
     },
     GetMessagesResponse: function (response) {
-        if (!response.Error) {
-            if (response.Data) {
-                FillDialog(response.Data)
-            }
+        if (IsWebSocketResponse(response)) {
+            FillDialog(response.Data)
         }
     }
 }
 
-if (window.location.href.indexOf('Chat/Index') > -1) {
-    console.log('Chat/Index')
-    let webSocketWrapper = new WebSocketWrapper()
+let webSocketWrapper;
 
-    let toUser = document.getElementById('toUser')
-    toUser.oninput = toUser.onfocus = function () {
-        if (this.value.length >= 3) {
+function IsWebSocketResponse(response) {
+    return (!response.Error && response.Data)
+}
+
+function GetMessagesWebSocket() {
+    let Uid = GetParamFromUrl('Uid')
+    if (Uid) {
+        if (webSocketWrapper) {
             webSocketWrapper.sendMessage(JSON.stringify({
-                Type: 'GetUsersEmail', Data: {
-                    Search: this.value
+                Type: 'GetMessages', Data: {
+                    Uid: Uid
                 }
             }))
         }
     }
-    toUser.onblur = function () {
-        HideAddressRecommendation()
-    }
-
-    let head = document.getElementById('head')
-    let body = document.getElementById('body')
-
-    document.getElementById('send').onclick = function () {
-        webSocketWrapper.sendMessage(JSON.stringify({
-            Type: 'CreateMessage', Data: {
-                ToUser: toUser.value, Head: head.value, Body: body.value
-            }
-        }))
-    }
-
-    webSocketWrapper.sendMessage(JSON.stringify({
-        Type: 'GetTopics', Data: null
-    }))
-    
 }
 
-if (window.location.href.indexOf('Chat/Dialog') > -1) {
-    console.log('Chat/Dialog')
-    let webSocketWrapper = new WebSocketWrapper()
-
-    let url_str = window.location.href
-    let url = new URL(url_str);
-    let search_params = url.searchParams;
-
-    if (search_params.has('id')) {
-
-        webSocketWrapper.sendMessage(JSON.stringify({
-            Type: 'GetMessages', Data: {
-                Id: search_params.get('id')
-            }
-        }))
-
+function GetTopicsWebSocket() {
+    if (webSocketWrapper) {
         webSocketWrapper.sendMessage(JSON.stringify({
             Type: 'GetTopics', Data: null
         }))
+    }
+}
 
+function CreateMessageWebSocket() {
+    if (webSocketWrapper) {
+        let toUser = document.getElementById('toUser').value
+        let head = document.getElementById('head').value
+        let body = document.getElementById('body').value
+        webSocketWrapper.sendMessage(JSON.stringify({
+            Type: 'CreateMessage', Data: {
+                ToUser: toUser,
+                Head: head,
+                Body: body
+            }
+        }))
+    }
+}
 
+function GetUsersEmailWebSocket() {
+    if (webSocketWrapper) {
+        let toUser = document.getElementById('toUser')
+        if (toUser.value.length >= 3) {
+            webSocketWrapper.sendMessage(JSON.stringify({
+                Type: 'GetUsersEmail', Data: {
+                    Search: toUser.value
+                }
+            }))
+        }
+    }
+}
+
+function GetParamFromUrl(name) {
+    let url_str = window.location.href
+    let url = new URL(url_str);
+    let search_params = url.searchParams;
+    if (search_params.has(name)) {
+        return search_params.get(name)
+    }
+    return false
+}
+
+function IsUrl(url) {
+    return window.location.href.indexOf(url) > -1;
+}
+
+if (IsUrl('Chat/Index')) {
+    webSocketWrapper = new WebSocketWrapper()
+
+    let toUser = document.getElementById('toUser')
+    toUser.oninput = toUser.onfocus = () => GetUsersEmailWebSocket()
+    toUser.onblur = () => HideAddressRecommendation()
+
+    document.getElementById('send').onclick = () => CreateMessageWebSocket()
+    GetTopicsWebSocket()
+}
+
+if (IsUrl('Chat/Dialog')) {
+    webSocketWrapper = new WebSocketWrapper()
+
+    document.getElementById('body').onkeydown = function (e) {
+        if (e.key === 'Enter') {
+            CreateMessageWebSocket()
+            this.value = ''
+        }
     }
 
+    GetMessagesWebSocket()
 
+    GetTopicsWebSocket()
 }

@@ -26,9 +26,9 @@ public class ChatController : Controller
     }
 
     [HttpGet("Dialog")]
-    public async Task<ActionResult> Dialog([FromQuery] int? id, [FromQuery] string? head, CancellationToken token)
+    public async Task<ActionResult> Dialog([FromQuery] string? uid, CancellationToken token)
     {
-        if (id == null && head == null)
+        if (uid == null)
         {
             return BadRequest();
         }
@@ -39,7 +39,6 @@ public class ChatController : Controller
         }
 
         var uName = HttpContext.User.Identity!.Name;
-
         var curUser = await _masterContext.Users
             .Where(u =>
                 u.Email == uName &&
@@ -51,42 +50,19 @@ public class ChatController : Controller
         }
 
         var message = await _masterContext.Messages
-            .Where(m => m.Id == id)
+            .Where(m =>
+                (m.AuthorId == curUser.Id || m.ToUserId == curUser.Id) &&
+                m.Uid == uid
+            )
             .Include(m => m.Author)
             .Include(m => m.ToUser)
+            .OrderBy(m => m.CreateDate)
             .FirstOrDefaultAsync(token);
         if (message == null)
         {
             return BadRequest();
         }
 
-        if (message.AuthorId == curUser.Id || message.ToUserId == curUser.Id)
-        {
-            var dialogUsersId = new List<int>()
-            {
-                message.AuthorId,
-                message.ToUserId
-            };
-
-            var messageTop = await _masterContext.Messages
-                .Where(m =>
-                    dialogUsersId.Contains(m.AuthorId) &&
-                    dialogUsersId.Contains(m.ToUserId) &&
-                    m.Head == message.Head
-                )
-                .Include(m => m.Author)
-                .Include(m => m.ToUser)
-                .OrderBy(m => m.CreateDate)
-                .FirstOrDefaultAsync(token);
-
-            if (messageTop == null)
-            {
-                return BadRequest();
-            }
-
-            return View(messageTop);
-        }
-
-        return BadRequest();
+        return View(message);
     }
 }

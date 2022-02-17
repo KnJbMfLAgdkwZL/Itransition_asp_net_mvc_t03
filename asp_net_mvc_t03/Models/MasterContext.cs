@@ -29,20 +29,27 @@ public partial class MasterContext : DbContext
             entity.Property(e => e.Body)
                 .HasMaxLength(2550)
                 .IsUnicode(false)
-                .HasColumnName("body");
+                .HasColumnName("body")
+                .UseCollation("Cyrillic_General_CI_AS");
 
             entity.Property(e => e.CreateDate).HasColumnName("createDate");
 
             entity.Property(e => e.Head)
                 .HasMaxLength(255)
                 .IsUnicode(false)
-                .HasColumnName("head");
+                .HasColumnName("head")
+                .UseCollation("Cyrillic_General_CI_AS");
 
             entity.Property(e => e.New).HasColumnName("new");
 
             entity.Property(e => e.ReplyId).HasColumnName("replyId");
 
             entity.Property(e => e.ToUserId).HasColumnName("toUserId");
+
+            entity.Property(e => e.Uid)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasColumnName("uid");
 
             entity.HasOne(d => d.Author)
                 .WithMany(p => p.MessageAuthors)
