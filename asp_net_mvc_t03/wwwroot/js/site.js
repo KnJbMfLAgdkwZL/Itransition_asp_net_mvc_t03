@@ -107,6 +107,81 @@ function addressesRecommendationsClick() {
     HideAddressRecommendation()
 }
 
+function FillTopics(data) {
+
+    let url_str = window.location.href
+    let url = new URL(url_str);
+    let search_params = url.searchParams;
+    let id = null
+    let head = null
+    if (search_params.has('id') && search_params.has('head')) {
+        id = search_params.get('id')
+        head = search_params.get('head')
+    }
+
+    let str = ''
+    for (let v of data) {
+        let date = new Date(v.CreateDate)
+        let dateStr = date.toLocaleTimeString() + ' ' + date.toLocaleDateString()
+        let active_chat = ''
+        if (id === v.Id || head === v.Head) {
+            active_chat = 'active_chat'
+        }
+        str += `
+        <a href="/Chat/Dialog?id=${v.Id}&head=${v.Head}" class="aTopics">
+            <div class="chat_list ${active_chat}" messageId="${v.Id}">
+                <div class="chat_people">
+                    <div class="chat_ib">
+                        <h5>${v.Author.Name} (${v.Author.Email}) <span class="chat_date">${dateStr}</span></h5>
+                        <p>
+                            <b>
+                                ${v.Head}
+                            </b>
+                        </p>
+                        <p>
+                            ${v.Body.slice(0, 120)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </a>`
+    }
+    document.getElementsByClassName('inbox_chat')[0].innerHTML = str
+}
+
+function FillDialog(data) {
+    let userId = data.UserId
+    let str = ``
+    for (let v of data.Messages) {
+        let date = new Date(v.CreateDate)
+        let dateStr = date.toLocaleTimeString() + ' ' + date.toLocaleDateString()
+        if (v.AuthorId === userId) {
+            str +=
+                `<div class="incoming_msg">
+                    <div class="received_msg received_withd_msg">
+                        ${v.Author.Name} (${v.Author.Email})
+                        <p>
+                            ${v.Body}
+                        </p>
+                        <span class="time_date">${dateStr}</span>
+                    </div>
+                </div>`
+        } else {
+            str +=
+                `<div class="outgoing_msg">
+                    <div class="sent_msg">
+                        ${v.Author.Name} (${v.Author.Email})
+                        <p>
+                            ${v.Body}
+                        </p>
+                        <span class="time_date">${dateStr}</span>
+                    </div>
+                </div>`
+        }
+    }
+    document.getElementsByClassName('msg_history')[0].innerHTML = str
+}
+
 class WebSocketWrapper {
     constructor() {
         let scheme = document.location.protocol === "https:" ? "wss" : "ws";
@@ -131,10 +206,19 @@ class WebSocketWrapper {
     sendMessage(data) {
         let socket = this.socket
 
-        if (!socket || socket.readyState !== WebSocket.OPEN) {
-            console.log("socket not connected");
+        if (!socket) {
+            console.log(`socket is false socket: ${socket}`)
+            return
         }
-        socket.send(data);
+        if (socket.readyState !== WebSocket.OPEN) {
+            console.log(`socket not connected State: ${socket.readyState}`);
+        }
+        if (socket.readyState === WebSocket.CONNECTING) {
+            setTimeout(() => socket.send(data), 500)
+        }
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(data);
+        }
     }
 
     onopen(event) {
@@ -179,30 +263,47 @@ class WebSocketWrapper {
             }
         }
     }
-
 }
 
 let WebSocketResponseCases = {
     GetUsersEmailResponse: function (response) {
-        if (response.Data) {
-            let data = response.Data
-            if (data.length > 0) {
-                let toUser = document.getElementById('toUser')
-                let cord = getCaretGlobalCoordinates(toUser)
-                SetAddressRecommendationCoordinates(cord)
-                ShowAddressRecommendation(data)
+        if (!response.Error) {
+            if (response.Data) {
+                let data = response.Data
+                if (data.length > 0) {
+                    let toUser = document.getElementById('toUser')
+                    let cord = getCaretGlobalCoordinates(toUser)
+                    SetAddressRecommendationCoordinates(cord)
+                    ShowAddressRecommendation(data)
+                }
             }
         }
-    }, CreateMessageResponse: function (response) {
-        if (response.Data) {
-            if (!response.Error) {
-                document.location.href = `/Chat/Dialog?id=${response.Data.Id}`;
+    },
+    CreateMessageResponse: function (response) {
+        if (!response.Error) {
+            if (response.Data) {
+                document.location.href = `/Chat/Dialog?id=${response.Data.Id}&head=${response.Data.Head}`
+            }
+        }
+    },
+    GetTopicsResponse: function (response) {
+        if (!response.Error) {
+            if (response.Data) {
+                FillTopics(response.Data)
+            }
+        }
+    },
+    GetMessagesResponse: function (response) {
+        if (!response.Error) {
+            if (response.Data) {
+                FillDialog(response.Data)
             }
         }
     }
 }
 
 if (window.location.href.indexOf('Chat/Index') > -1) {
+    console.log('Chat/Index')
     let webSocketWrapper = new WebSocketWrapper()
 
     let toUser = document.getElementById('toUser')
@@ -223,11 +324,41 @@ if (window.location.href.indexOf('Chat/Index') > -1) {
     let body = document.getElementById('body')
 
     document.getElementById('send').onclick = function () {
-        let data = JSON.stringify({
+        webSocketWrapper.sendMessage(JSON.stringify({
             Type: 'CreateMessage', Data: {
                 ToUser: toUser.value, Head: head.value, Body: body.value
             }
-        })
-        webSocketWrapper.sendMessage(data)
+        }))
     }
+
+    webSocketWrapper.sendMessage(JSON.stringify({
+        Type: 'GetTopics', Data: null
+    }))
+    
+}
+
+if (window.location.href.indexOf('Chat/Dialog') > -1) {
+    console.log('Chat/Dialog')
+    let webSocketWrapper = new WebSocketWrapper()
+
+    let url_str = window.location.href
+    let url = new URL(url_str);
+    let search_params = url.searchParams;
+
+    if (search_params.has('id')) {
+
+        webSocketWrapper.sendMessage(JSON.stringify({
+            Type: 'GetMessages', Data: {
+                Id: search_params.get('id')
+            }
+        }))
+
+        webSocketWrapper.sendMessage(JSON.stringify({
+            Type: 'GetTopics', Data: null
+        }))
+
+
+    }
+
+
 }

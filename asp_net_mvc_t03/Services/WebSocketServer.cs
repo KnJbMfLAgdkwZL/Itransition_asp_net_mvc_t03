@@ -26,9 +26,8 @@ public class WebSocketServer : IWebSocketServer
         {
             {"GetUsersEmail", GetUsersEmailAsync},
             {"CreateMessage", CreateMessageAsync},
-
-            {"getMessages", GetMessagesAsync},
-            {"getHeads", GetHeadsAsync}
+            {"GetTopics", GetTopicsAsync},
+            {"GetMessages", GetMessagesAsync}
         };
     }
 
@@ -177,17 +176,122 @@ public class WebSocketServer : IWebSocketServer
         await SendAsync(response);
     }
 
-    private Task GetMessagesAsync(dynamic request, HttpContext httpContext)
+    private async Task GetTopicsAsync(dynamic request, HttpContext httpContext)
     {
         var response = new WebSocketMessage
         {
             Type = request.Type + "Response",
         };
-        return Task.CompletedTask;
+
+        if (httpContext.User.Identity!.IsAuthenticated == false)
+        {
+            response.Error = "Not authorized";
+            await SendAsync(response);
+            return;
+        }
+
+        var token = CancellationToken.None;
+
+        var uName = httpContext.User.Identity!.Name;
+        var curUser = await _masterContext.Users
+            .Where(u =>
+                u.Email == uName &&
+                u.Status == UserStatus.Unblock.ToString())
+            .FirstOrDefaultAsync(token);
+
+        if (curUser == null)
+        {
+            response.Error = "Current User not found";
+            await SendAsync(response);
+            return;
+        }
+
+        var topics = _masterContext.Messages
+            .Where(message =>
+                message.AuthorId == curUser.Id ||
+                message.ToUserId == curUser.Id)
+            .Include(m => m.Author)
+            .Include(m => m.ToUser)
+            .AsEnumerable()
+            .OrderByDescending(m => m.CreateDate)
+            .GroupBy(m => m.Head)
+            .Select(m => m.First())
+            .Take(10)
+            .ToList();
+
+        response.Data = topics;
+        await SendAsync(response);
     }
 
-    private Task GetHeadsAsync(dynamic request, HttpContext httpContext)
+    private async Task GetMessagesAsync(dynamic request, HttpContext httpContext)
     {
-        return Task.CompletedTask;
+        var response = new WebSocketMessage
+        {
+            Type = request.Type + "Response",
+        };
+
+        if (httpContext.User.Identity!.IsAuthenticated == false)
+        {
+            response.Error = "Not authorized";
+            await SendAsync(response);
+            return;
+        }
+
+        var token = CancellationToken.None;
+
+        var uName = httpContext.User.Identity!.Name;
+
+        var curUser = await _masterContext.Users
+            .Where(u =>
+                u.Email == uName &&
+                u.Status == UserStatus.Unblock.ToString())
+            .FirstOrDefaultAsync(token);
+        if (curUser == null)
+        {
+            response.Error = "Current User not found";
+            await SendAsync(response);
+            return;
+        }
+
+        int id = request.Data.Id;
+        var message = await _masterContext.Messages
+            .Where(m => m.Id == id)
+            .Include(m => m.Author)
+            .Include(m => m.ToUser)
+            .FirstOrDefaultAsync(token);
+        if (message == null)
+        {
+            response.Error = "Message not found";
+            await SendAsync(response);
+            return;
+        }
+
+        if (message.AuthorId == curUser.Id || message.ToUserId == curUser.Id)
+        {
+            var dialogUsersId = new List<int>()
+            {
+                message.AuthorId,
+                message.ToUserId
+            };
+
+            var messages = await _masterContext.Messages
+                .Where(m =>
+                    dialogUsersId.Contains(m.AuthorId) &&
+                    dialogUsersId.Contains(m.ToUserId) &&
+                    m.Head == message.Head
+                )
+                .Include(m => m.Author)
+                .Include(m => m.ToUser)
+                .OrderBy(m => m.CreateDate)
+                .Take(100)
+                .ToListAsync(token);
+
+            response.Data = new
+            {
+                Messages = messages,
+                UserId = curUser.Id
+            };
+            await SendAsync(response);
+        }
     }
 }

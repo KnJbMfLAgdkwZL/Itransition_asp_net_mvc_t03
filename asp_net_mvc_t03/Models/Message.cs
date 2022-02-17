@@ -14,6 +14,6 @@ public partial class Message
     public int? ReplyId { get; set; }
     public bool New { get; set; }
 
-    [JsonIgnore] public virtual User Author { get; set; } = null!;
-    [JsonIgnore] public virtual User ToUser { get; set; } = null!;
+    public virtual User Author { get; set; } = null!;
+    public virtual User ToUser { get; set; } = null!;
 }

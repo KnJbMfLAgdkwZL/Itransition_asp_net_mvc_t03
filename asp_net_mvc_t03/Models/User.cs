@@ -1,4 +1,6 @@
-﻿namespace asp_net_mvc_t03.Models;
+﻿using Newtonsoft.Json;
+
+namespace asp_net_mvc_t03.Models;
 
 public partial class User
 {
@@ -14,8 +16,8 @@ public partial class User
     public DateTime RegistrationDate { get; set; }
     public DateTime LastLoginDate { get; set; }
     public string Status { get; set; } = null!;
-    public string Password { get; set; } = null!;
-    
-    public virtual ICollection<Message> MessageAuthors { get; set; }
-    public virtual ICollection<Message> MessageToUsers { get; set; }
+    [JsonIgnore] public string Password { get; set; } = null!;
+
+    [JsonIgnore] public virtual ICollection<Message> MessageAuthors { get; set; }
+    [JsonIgnore] public virtual ICollection<Message> MessageToUsers { get; set; }
 }

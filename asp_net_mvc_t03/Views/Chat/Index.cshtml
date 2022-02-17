@@ -1,39 +1,55 @@
 @model dynamic
-
 @{
     ViewBag.Title = "title";
     Layout = "_Layout";
 }
-
-<div>
-    Create new message? <br/>
-    To: <input type="text" required name="toUser" id="toUser"/> <br/>
-    Topic: <input type="text" required name="head" id="head"/> <br/>
-    Body: <textarea minlength="1" maxlength="1000" required name="body" id="body"></textarea>
-    <input type="submit" value="send" id="send"/>
+<div class="infoHead">
+    <h6>
+        Create or Choose Dialog
+    </h6>
 </div>
-
-<span id="addressRecommendation">
-</span>
-
-<style>
-#addressRecommendation{
-    display: none;
-    position: absolute;
-    background: lightblue;
-    margin: 10px;
-}
-.addressesRecommendations
-{
-    cursor: pointer;
-    padding: 5px;
-}
-.addressesRecommendations:hover{
-    background: lightgray;
-}
-
-textarea#body {
-    width: 450px;
-    height: 350px;
-}
-</style>
+<div class="container">
+    <span id="addressRecommendation">
+    </span>
+    <h3 class=" text-center">
+    </h3>
+    <div class="messaging">
+        <div class="inbox_msg">
+            <div class="inbox_people">
+                <div class="headind_srch">
+                    <div class="recent_heading">
+                        <h4>Recent</h4>
+                    </div>
+                </div>
+                <div class="inbox_chat">
+                </div>
+            </div>
+            <div class="mesgs">
+                <div>Create new message?</div>
+                <div class="type_msg">
+                    <div class="input_msg_write">
+                        <br/>
+                        <div>
+                            <div>To:</div>
+                            <div>
+                                <input type="text" required name="toUser" id="toUser"/>
+                            </div>
+                            <div>Topic:</div>
+                            <div>
+                                <input type="text" required name="head" id="head"/>
+                            </div>
+                            <div>Body:</div>
+                            <div>
+                                <textarea minlength="1" maxlength="1000" required name="body" id="body"></textarea>
+                            </div>
+                            <div class="sendwraper">
+                                <button class="btn btn-outline-success toolbarButtons" id="send">Send</button>
+                            </div>
+                            <br/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
