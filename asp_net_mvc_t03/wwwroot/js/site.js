@@ -118,7 +118,7 @@ function FillTopics(data) {
         if (Uid && v.Uid === Uid) {
             active_chat = 'active_chat'
         }
-        
+
         str += `
         <a href="/Chat/Dialog?Uid=${v.Uid}" class="aTopics">
             <div class="chat_list ${active_chat}" data-Uid="${v.Uid}">
@@ -181,9 +181,14 @@ function FillDialog(data) {
 
 class WebSocketWrapper {
     constructor() {
+        this.connect()
+    }
+
+    connect() {
         let scheme = document.location.protocol === "https:" ? "wss" : "ws";
         let port = document.location.port ? (":" + document.location.port) : "";
         let connectionUrl = scheme + "://" + document.location.hostname + port + "/ws";
+
         this.socket = new WebSocket(connectionUrl);
         this.socket.onopen = this.onopen
         this.socket.onclose = this.onclose
@@ -244,6 +249,8 @@ class WebSocketWrapper {
             switch (socket.readyState) {
                 case WebSocket.CLOSED:
                     console.log(`onerror: WebSocket.CLOSED`)
+                    console.log(`I try to reconnect`)
+                    this.connect()
                     break;
                 case WebSocket.CLOSING:
                     console.log(`onerror: WebSocket.CLOSING`)
@@ -264,22 +271,20 @@ class WebSocketWrapper {
 
 let WebSocketResponseCases = {
     GetUsersEmailResponse: function (response) {
-        if (!response.Error) {
-            if (response.Data) {
-                let data = response.Data
-                if (data.length > 0) {
-                    let toUser = document.getElementById('toUser')
-                    let cord = getCaretGlobalCoordinates(toUser)
-                    SetAddressRecommendationCoordinates(cord)
-                    ShowAddressRecommendation(data)
-                }
+        if (IsWebSocketResponse(response)) {
+            let data = response.Data
+            if (data.length > 0) {
+                let toUser = document.getElementById('toUser')
+                let cord = getCaretGlobalCoordinates(toUser)
+                SetAddressRecommendationCoordinates(cord)
+                ShowAddressRecommendation(data)
             }
         }
     },
     CreateMessageResponse: function (response) {
         if (IsWebSocketResponse(response)) {
             if (IsUrl('Chat/Index')) {
-                document.location.href = `/Chat/Dialog?id=${response.Data.Id}&head=${response.Data.Head}`
+                document.location.href = `/Chat/Dialog?Uid=${response.Data.Uid}`
             }
             if (IsUrl('Chat/Dialog')) {
                 GetMessagesWebSocket()
@@ -297,6 +302,20 @@ let WebSocketResponseCases = {
         if (IsWebSocketResponse(response)) {
             FillDialog(response.Data)
         }
+    },
+    RefreshTopics: function (response) {
+        GetTopicsWebSocket()
+    },
+    RefreshDialog: function (response) {
+        if (IsWebSocketResponse(response)) {
+            let uid = GetParamFromUrl('Uid')
+            if (uid) {
+                if (uid === response.Data.Uid) {
+                    GetMessagesWebSocket()
+                }
+            }
+        }
+
     }
 }
 
@@ -377,7 +396,9 @@ if (IsUrl('Chat/Index')) {
     toUser.onblur = () => HideAddressRecommendation()
 
     document.getElementById('send').onclick = () => CreateMessageWebSocket()
+
     GetTopicsWebSocket()
+    setInterval(() => GetTopicsWebSocket(), 10000)
 }
 
 if (IsUrl('Chat/Dialog')) {
@@ -390,7 +411,8 @@ if (IsUrl('Chat/Dialog')) {
         }
     }
 
-    GetMessagesWebSocket()
-
     GetTopicsWebSocket()
+    GetMessagesWebSocket()
+    setInterval(() => GetTopicsWebSocket(), 10000)
+    setInterval(() => GetMessagesWebSocket(), 10000)
 }

@@ -13,14 +13,17 @@ public class WebSocketServer : IWebSocketServer
 {
     private WebSocket? WebSocket { set; get; }
     private readonly MasterContext _masterContext;
+    private string? _uName = null;
+    private IWebSocketHolder WebSocketHolder { set; get; }
 
     private delegate Task CaseHandler(dynamic request, HttpContext httpContext);
 
     private readonly Dictionary<string, CaseHandler> _cases;
 
-    public WebSocketServer(MasterContext masterContext)
+    public WebSocketServer(MasterContext masterContext, IWebSocketHolder webSocketHolder)
     {
         _masterContext = masterContext;
+        WebSocketHolder = webSocketHolder;
 
         _cases = new Dictionary<string, CaseHandler>
         {
@@ -34,6 +37,16 @@ public class WebSocketServer : IWebSocketServer
     public async Task AcceptWebSocketAsync(HttpContext httpContext)
     {
         WebSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
+        _uName = httpContext!.User.Identity?.Name;
+        if (_uName != null)
+        {
+            WebSocketHolder.AddSocket(WebSocket, _uName);
+        }
+        else
+        {
+            await WebSocket.CloseAsync(WebSocketCloseStatus.Empty, "Closed by server Identity null",
+                CancellationToken.None);
+        }
     }
 
     public async Task EchoAsync(HttpContext httpContext)
@@ -56,6 +69,7 @@ public class WebSocketServer : IWebSocketServer
         }
 
         await WebSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, token);
+        WebSocketHolder.Remove(WebSocket, _uName);
     }
 
     public async Task SendAsync(object response)
@@ -68,6 +82,19 @@ public class WebSocketServer : IWebSocketServer
         var jsonResponse = JsonConvert.SerializeObject(response, Formatting.Indented, settings);
         var bytes = Encoding.ASCII.GetBytes(jsonResponse);
         await WebSocket!.SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length),
+            WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, CancellationToken.None);
+    }
+
+    public async Task SendAsync(object response, WebSocket socket)
+    {
+        var settings = new JsonSerializerSettings()
+        {
+            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+            Error = (sender, args) => { args.ErrorContext.Handled = true; },
+        };
+        var jsonResponse = JsonConvert.SerializeObject(response, Formatting.Indented, settings);
+        var bytes = Encoding.ASCII.GetBytes(jsonResponse);
+        await socket.SendAsync(new ArraySegment<byte>(bytes, 0, bytes.Length),
             WebSocketMessageType.Text, WebSocketMessageFlags.EndOfMessage, CancellationToken.None);
     }
 
@@ -123,20 +150,12 @@ public class WebSocketServer : IWebSocketServer
             Type = request.Type + "Response",
         };
 
-        if (httpContext.User.Identity!.IsAuthenticated == false)
-        {
-            response.Error = "Not authorized";
-            await SendAsync(response);
-            return;
-        }
-
         var token = CancellationToken.None;
 
         await using var transaction = await _masterContext.Database.BeginTransactionAsync(token);
 
-        var authorName = httpContext!.User.Identity.Name;
         var author = await _masterContext.Users
-            .Where(user => user.Email == authorName && user.Status == UserStatus.Unblock.ToString())
+            .Where(user => user.Email == _uName && user.Status == UserStatus.Unblock.ToString())
             .FirstOrDefaultAsync(token);
 
         var toUserName = (string) request.Data.ToUser.ToString();
@@ -144,37 +163,36 @@ public class WebSocketServer : IWebSocketServer
             .Where(user => user.Email == toUserName)
             .FirstOrDefaultAsync(token);
 
-        if (author == null)
+        if (author == null || toUser == null)
         {
-            response.Error = "Author not found";
+            response.Error = "Author or ToUser not found";
+            await SendAsync(response);
+            return;
         }
 
-        if (toUser == null)
+        var modelMessage = new Message()
         {
-            response.Error = "ToUser not found";
-        }
+            Head = CutStr(request.Data.Head.ToString(), 100),
+            Body = CutStr(request.Data.Body.ToString(), 1000),
+            AuthorId = author.Id,
+            ToUserId = toUser.Id,
+            CreateDate = DateTime.Now,
+            New = true,
+            ReplyId = null
+        };
+        modelMessage.Uid = GetHashString(author.Id + toUser.Id + modelMessage.Head);
 
-        if (author != null && toUser != null)
-        {
-            var modelMessage = new Message()
-            {
-                Head = request.Data.Head.ToString(),
-                Body = request.Data.Body.ToString(),
-                AuthorId = author.Id,
-                ToUserId = toUser.Id,
-                CreateDate = DateTime.Now,
-                New = true,
-                ReplyId = null
-            };
-            modelMessage.Uid = GetHashString(author.Id + toUser.Id + modelMessage.Head);
-
-            var entityEntry = await _masterContext.Messages.AddAsync(modelMessage, token);
-            await _masterContext.SaveChangesAsync(token);
-            response.Data = entityEntry.Entity;
-        }
+        var entityEntry = await _masterContext.Messages.AddAsync(modelMessage, token);
+        await _masterContext.SaveChangesAsync(token);
+        response.Data = entityEntry.Entity;
 
         await transaction.CommitAsync(token);
         await SendAsync(response);
+
+        await RefreshTopics(toUser.Email);
+        await RefreshDialog(toUser.Email, modelMessage.Uid);
+
+        await RefreshTopics(author.Email);
     }
 
     private async Task GetTopicsAsync(dynamic request, HttpContext httpContext)
@@ -184,19 +202,11 @@ public class WebSocketServer : IWebSocketServer
             Type = request.Type + "Response",
         };
 
-        if (httpContext.User.Identity!.IsAuthenticated == false)
-        {
-            response.Error = "Not authorized";
-            await SendAsync(response);
-            return;
-        }
-
         var token = CancellationToken.None;
 
-        var uName = httpContext.User.Identity!.Name;
         var curUser = await _masterContext.Users
             .Where(u =>
-                u.Email == uName &&
+                u.Email == _uName &&
                 u.Status == UserStatus.Unblock.ToString())
             .FirstOrDefaultAsync(token);
 
@@ -231,20 +241,11 @@ public class WebSocketServer : IWebSocketServer
             Type = request.Type + "Response",
         };
 
-        if (httpContext.User.Identity!.IsAuthenticated == false)
-        {
-            response.Error = "Not authorized";
-            await SendAsync(response);
-            return;
-        }
-
         var token = CancellationToken.None;
-
-        var uName = httpContext.User.Identity!.Name;
 
         var curUser = await _masterContext.Users
             .Where(u =>
-                u.Email == uName &&
+                u.Email == _uName &&
                 u.Status == UserStatus.Unblock.ToString())
             .FirstOrDefaultAsync(token);
         if (curUser == null)
@@ -289,5 +290,59 @@ public class WebSocketServer : IWebSocketServer
             .ToString(hashBytes)
             .Replace("-", string.Empty);
         return hash;
+    }
+
+    private string CutStr(string str, int maxSize = 10000)
+    {
+        str = str.Trim();
+        if (str.Length >= maxSize)
+        {
+            str = str.Substring(0, maxSize);
+        }
+
+        return str;
+    }
+
+    private async Task RefreshTopics(string email)
+    {
+        var sockets = WebSocketHolder.GetAllSocket(email);
+        if (sockets == null)
+        {
+            return;
+        }
+
+        var response = new WebSocketMessage
+        {
+            Type = "RefreshTopics",
+            Data = null,
+            Error = ""
+        };
+        foreach (var v in sockets)
+        {
+            await SendAsync(response, v);
+        }
+    }
+
+    private async Task RefreshDialog(string email, string uid)
+    {
+        var sockets = WebSocketHolder.GetAllSocket(email);
+        if (sockets == null)
+        {
+            return;
+        }
+
+        var response = new WebSocketMessage
+        {
+            Type = "RefreshDialog",
+            Data = new
+            {
+                Uid = uid
+            },
+            Error = ""
+        };
+        foreach (var v in sockets)
+        {
+            await SendAsync(response, v);
+        }
     }
 }

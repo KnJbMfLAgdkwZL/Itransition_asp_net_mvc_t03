@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.Intrinsics.Arm;
 using asp_net_mvc_t03.Interfaces;
 using asp_net_mvc_t03.Middlewares;
 using asp_net_mvc_t03.Models;
@@ -28,6 +26,7 @@ builder.Services.AddAuthorization();
 
 // Services
 builder.Services.AddScoped<IWebSocketServer, WebSocketServer>();
+builder.Services.AddSingleton<IWebSocketHolder, WebSocketHolder>();
 
 // Add services to the container.
 builder.Services.AddControllers();
