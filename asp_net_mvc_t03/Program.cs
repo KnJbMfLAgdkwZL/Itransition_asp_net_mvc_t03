@@ -1,9 +1,10 @@
+using asp_net_mvc_t03.AuthorizationHandler;
 using asp_net_mvc_t03.Interfaces;
-using asp_net_mvc_t03.Middlewares;
 using asp_net_mvc_t03.Models;
 using asp_net_mvc_t03.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,12 +14,13 @@ builder.Services.AddDbContext<MasterContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DBConnection")));
 
 // Security
+builder.Services.AddTransient<IAuthorizationHandler, CustomAuthorizationHandler>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options => //CookieAuthenticationOptions
+    .AddCookie(options =>
     {
         options.LoginPath = new PathString("/account/login");
+        options.AccessDeniedPath = new PathString("/account/accessDenied");
         options.SlidingExpiration = true;
-        //options.AccessDeniedPath = new PathString("/account/login");
         options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
     });
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
@@ -47,22 +49,15 @@ else
     app.UseHsts();
 }
 
-//app.UseMiddleware<RequestHandlerMiddleware>();
-
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseMiddleware<AutoLogoutMiddleware>();
-
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-
-//app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
-
 
 var webSocketOptions = new WebSocketOptions()
 {

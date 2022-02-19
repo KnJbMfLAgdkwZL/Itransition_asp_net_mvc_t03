@@ -24,6 +24,14 @@ public class AccountController : Controller
     }
 
     [AllowAnonymous]
+    [HttpGet("AccessDenied")]
+    public async Task<IActionResult> AccessDenied()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return Ok("AccessDenied");
+    }
+
+    [AllowAnonymous]
     [HttpGet("Login")]
     public IActionResult Login()
     {
@@ -110,7 +118,6 @@ public class AccountController : Controller
         return View(registerForm);
     }
 
-    [Authorize]
     [HttpGet("Logout")]
     public async Task<IActionResult> LogoutAsync()
     {
@@ -118,16 +125,17 @@ public class AccountController : Controller
         return RedirectToAction("Login", "Account");
     }
 
-    private async Task AuthenticateAsync(string userName)
+    private async Task AuthenticateAsync(string email)
     {
         var claims = new List<Claim>
         {
-            new(ClaimsIdentity.DefaultNameClaimType, userName),
+            new(ClaimsIdentity.DefaultNameClaimType, email),
         };
-        var id = new ClaimsIdentity(
+        var claimsIdentity = new ClaimsIdentity(
             claims, "ApplicationCookie",
             ClaimsIdentity.DefaultNameClaimType,
             ClaimsIdentity.DefaultRoleClaimType);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(id));
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(claimsIdentity));
     }
 }
